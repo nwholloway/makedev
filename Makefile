@@ -1,8 +1,8 @@
+# $Id$
+
 DEVDIR  = $(ROOT)/dev
 MANDIR  = $(ROOT)/usr/man
 MANEXT  = 8
-
-PROCDIR = /proc
 
 default:
 	@echo Nothing to make.
