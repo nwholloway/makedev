@@ -1,20 +1,20 @@
 #! /bin/sh -
-# $Id: MAKEDEV.announce,v 1.2 1993/12/02 10:54:25 alfie Exp alfie $
+# $Id: MAKEDEV.announce,v 1.3 1994/01/04 10:27:49 alfie Exp alfie $
 
-/usr/lib/sendmail -t << 'EOF'
+( cat << 'EOF'; echo; sed '/=$/d' MAKEDEV-@ID@.lsm ) | /usr/lib/sendmail -t
 From: alfie@dcs.warwick.ac.uk (Nick Holloway)
 Organization: Department of Computer Science, Univeristy of Warwick, UK.
 To: linux-announce@tc.cornell.edu
-Subject: ANNOUNCE: MAKEDEV (v1.3)
+Subject: ANNOUNCE: MAKEDEV (v@ID@)
 Keywords: MAKEDEV, mknod, Linux, devices
 
 I have just uploaded to tsx-11.mit.edu and sunsite.unc.edu my version
 of MAKEDEV.  The final resting places are unknown, but based on
 previous locations, I would guess at:
 
-     tsx-11.mit.edu:/pub/linux/sources/sbin/MAKEDEV-1.3.tar.gz
-    sunsite.unc.edu:/pub/Linux/system/Admin/MAKEDEV-1.3.tar.gz
-       ftp.funet.fi:/pub/OS/Linux/tools/MAKEDEV-1.3.tar.gz
+     tsx-11.mit.edu:/pub/linux/sources/sbin/MAKEDEV-@ID@.tar.gz
+    sunsite.unc.edu:/pub/Linux/system/Admin/MAKEDEV-@ID@.tar.gz
+       ftp.funet.fi:/pub/OS/Linux/tools/MAKEDEV-@ID@.tar.gz
 
 The main changes for this version are:
     o Addition of generic SCSI devices (named "sg[a-h]").
@@ -40,4 +40,10 @@ disk using "MAKEDEV xd0", than creating all partitions by hand.
 --
 Nick Holloway |  `O O'  | alfie@dcs.warwick.ac.uk, alfie@warwick.UUCP,
 [aka `Alfie'] | // ^ \\ | ..!uunet!mcsun!uknet!warwick!alfie
+EOF
+
+( cat << 'EOF'; echo; cat MAKEDEV-@ID@.lsm ) | cat > /dev/null # /usr/lib/sendmail -t
+From: alfie@dcs.warwick.ac.uk (Nick Holloway)
+To: jeffk@msen.com (Jeff Kopmanis)
+Subject: MAKEDEV-@ID@.lsm
 EOF
