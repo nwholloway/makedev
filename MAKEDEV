@@ -1,6 +1,6 @@
 #! /bin/sh -
 
-# $Id: MAKEDEV,v 1.1 1993/07/19 11:31:32 alfie Exp alfie $
+# $Id: MAKEDEV,v 1.1 1993/07/19 11:32:44 alfie Exp alfie $
 #
 # This is my attempt at a MAKEDEV script.  IMHO it cleans up many areas.
 # It can be used to determine the necessary info for a device without
@@ -16,23 +16,19 @@
 # The group used for the devices are changeable at the head of the script,
 # so you can edit these to match the groups on your system, or your whims.
 #
+# If you are aware of any glaring omissions or errors, please let me know.
+#
 # Thanks to Ian Jackson for help and encouragement.
 # 
-# 	Nick Holloway <alfie@dcs.warwick.ac.uk>  19th July 1993
-# 
-# TODO: 
-#   o would like cleaner naming for virtual terminals -- suggestions?.
-#     Also, to create them in one entry (as done with others).
-#   o Campaign for removal of ttySn for serial lines :-).
-#   o more understanding of the various NET devices, and confidence that
-#     nothing is missing from that set.
+# 	Nick Holloway <alfie@dcs.warwick.ac.uk>  
+#					Last changed: 2nd December 1993
 # 
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 # Device 'make' file.  Valid arguments:
 # 
 #	generic		create a generic subset of devices
 #	local		configuration specific devices (runs MAKEDEV.local)
-# 	std		standard devices
+#	std		standard devices
 #  Virtual Terminals:
 #	console		(also known as tty0)
 #	tty{0..63}	virtual consoles
@@ -53,24 +49,30 @@
 #	hd1[a-d]	2nd AT controller hard disks
 #	xd[a-d] 	XT hard disks
 #	sd[a-i]		SCSI hard disks
+#	loop		Loopback disk devices
 #  Tapes:
 #	st[0-1]		SCSI tapes
 #	qic		QIC tapes
+#	ftape		floppy driver tapes
 #  CD:
 #	scd[0-1]	SCSI CD players
 #	sonycd		Sony CD player
 #	mcd		Mitsumi CD player
+#	sbpcd		Sound Blaster CD player
 #  Networking:
 #	net		various protocol control devices (?)
-#	we,wd,ec,ne	various net interfaces (?)
+#	we[0-3],wd[0-3],ec[0-3],ne[0-3]
+#			various net interfaces (?)
 #  Audio:
 #	audio		various audio devices
+#	pcaudio		audio devices used by pcsndrv
 #  Misc:
 #	fd		file names for file descriptors
 #
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 
-# Define what group a collection of devices will be created with
+# Define what group a collection of devices will be created with -- you will
+# probably need to edit the right hand side to to match your groups.
 
  system=system
    kmem=kmem
@@ -80,7 +82,7 @@ dialout=dialout
 printer=daemon
  floppy=floppy
    disk=disk
-     cd=disk
+  cdrom=disk
    tape=disk
     net=system
   audio=system
@@ -93,6 +95,10 @@ makedev () {	# usage: makedev name [bcu] major minor owner:group mode
 	chown $5 $1 &&
 	chmod $6 $1
 }
+symlink () {	# usage: symlink name target
+	rm -f $1
+	ln -s $2 $1
+}
 
 debug=
 if [ _"-n" = _"$1" ]
@@ -100,7 +106,10 @@ then
 	shift 
 	debug=-n
 	makedev () { 
-	echo "$1 = $2 $3 $4 $5 $6" 
+		echo "$1 = $2 $3 $4 $5 $6" 
+	}
+	symlink () {
+		echo "$1 -> $2"
 	}
 fi
 
@@ -130,7 +139,7 @@ do
 		makedev null c 1 3 root:$system 666
 		makedev port c 1 4 root:$kmem   660
 		makedev zero c 1 5 root:$system 666
-		makedev core c 1 6 root:$kmem   660
+	#	makedev core c 1 6 root:$kmem   660
 		makedev full c 1 7 root:$system 666
 		makedev ram  b 1 1 root:$disk   660
 		makedev tty  c 5 0 root:$tty    666
@@ -139,36 +148,17 @@ do
 		makedev console c 4 0 root:$tty 622
 		;;
 	tty[0-9]|tty[1-5][0-9]|tty[6][0-3])
-		num=`expr $arg : "tty\(.*\)"`
-		makedev tty$num c 4 $num root:$tty 622
+		line=`expr $arg : "tty\(.*\)"`
+		makedev tty$line c 4 $line root:$tty 622
 		;;
 	ttyS[0-9]|ttyS[1-5][0-9]|ttyS[6][0-3])
-		# OK, I don't personally like this, and believe it will cause
-		# grief when pty's are expanded, but the current dogma is
-		# for serial lines to be named "ttyS<n>" (0<=n<=63).
 		line=`expr $arg : "ttyS\(.*\)"`
 		minor=`expr 64 + $line`
 		makedev ttyS$line c 4 $minor root:$tty 666
 		makedev cua$line c 5 $minor root:$dialout 660
 		;;
-#	tty[abcd])			# Standard com1 to com4
-#		line=`expr $arg : "tty\(.\)"`
-#		minor=`expr 64 + abcd : ".*$line" - 1`
-#		makedev tty$line c 4 $minor root:$tty 666
-#		makedev cua$line c 5 $minor root:$dialout 660
-#		;;
-#	tty[ef][0-9a-f])		# extra serial lines
-#		bank=`expr $arg : "tty\(.\)`
-#		line=`expr $arg : "tty.\(.\)`
-#		base=`expr ef : ".*$bank" - 1 \* 16`
-#		minor=`expr 68 + $base + 0123456789abcdef : ".*$line" - 1`
-#		makedev tty$bank$line c 4 $minor root:$tty 666
-#		makedev cua$bank$line c 4 $minor root:$dialout 660
-#		;;
 	pty[p-s])
-		# Currently limited to 64 master/slave pairs.  When (if?)
-		# pty's master and slaves are each moved to their own major 
-		# device, this can be updated to allow 256 pairs [p-zP-T].
+		# Currently limited to 64 master/slave pairs.
 		bank=`expr $arg : "pty\(.\)"`
 		base=`expr \( pqrs : ".*$bank" - 1 \) \* 16`
 		for i in 0 1 2 3 4 5 6 7 8 9 a b c d e f
@@ -192,63 +182,69 @@ do
 		makedev inportbm c 10 2 root:$mouse 666
 		makedev atibm    c 10 3 root:$mouse 666
 		;;
-		js)
-			makedev js0 c 15 0 root:$mouse 666
-			makedev js1 c 15 1 root:$mouse 666
-			;;
+	js)
+		makedev js0 c 15 0 root:$mouse 666
+		makedev js1 c 15 1 root:$mouse 666
+		;;
 	fd[0-4])
-		disk=`expr $arg : "fd\(.\)"`
-		makedev fd$disk b 2 $disk root:$floppy 660
-		makedev fd${disk}d360  b 2 `expr $disk +  4` root:$floppy 660
-		makedev fd${disk}h1200 b 2 `expr $disk +  8` root:$floppy 660
-		makedev fd${disk}D360  b 2 `expr $disk + 12` root:$floppy 660
-		makedev fd${disk}H360  b 2 `expr $disk + 12` root:$floppy 660
-		makedev fd${disk}D720  b 2 `expr $disk + 16` root:$floppy 660
-		makedev fd${disk}H720  b 2 `expr $disk + 16` root:$floppy 660
-		makedev fd${disk}h360  b 2 `expr $disk + 20` root:$floppy 660
-		makedev fd${disk}h720  b 2 `expr $disk + 24` root:$floppy 660
-		makedev fd${disk}H1440 b 2 `expr $disk + 28` root:$floppy 660
+		unit=`expr $arg : "fd\(.\)"`
+		makedev fd$unit b 2 $unit root:$floppy 660
+		makedev fd${unit}d360  b 2 `expr $unit +  4` root:$floppy 660
+		makedev fd${unit}h1200 b 2 `expr $unit +  8` root:$floppy 660
+		makedev fd${unit}D360  b 2 `expr $unit + 12` root:$floppy 660
+		makedev fd${unit}H360  b 2 `expr $unit + 12` root:$floppy 660
+		makedev fd${unit}D720  b 2 `expr $unit + 16` root:$floppy 660
+		makedev fd${unit}H720  b 2 `expr $unit + 16` root:$floppy 660
+		makedev fd${unit}h360  b 2 `expr $unit + 20` root:$floppy 660
+		makedev fd${unit}h720  b 2 `expr $unit + 24` root:$floppy 660
+		makedev fd${unit}H1440 b 2 `expr $unit + 28` root:$floppy 660
 		;;
 	hd[a-d])
-		disk=`expr $arg : "hd\(.\)"`
-		base=`expr \( abcd : ".*$disk" - 1 \) \* 64`
-		makedev hd$disk b 3 $base root:$disk 660
+		unit=`expr $arg : "hd\(.\)"`
+		base=`expr \( abcd : ".*$unit" - 1 \) \* 64`
+		makedev hd$unit b 3 $base root:$disk 660
 		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16
 		do
-		makedev hd$disk$part b 3 `expr $base + $part` root:$disk 660
+			makedev hd$unit$part b 3 `expr $base + $part` root:$disk 660
 		done
 		;;
 	hd1[a-d])
-		disk=`expr $arg : "hd1\(.\)"`
-		base=`expr \( abcd : ".*$disk" - 1 \) \* 64`
-		makedev hd1$disk b 22 $base root:$disk 660
+		unit=`expr $arg : "hd1\(.\)"`
+		base=`expr \( abcd : ".*$unit" - 1 \) \* 64`
+		makedev hd1$unit b 22 $base root:$disk 660
 		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16
 		do
-		makedev hd1$disk$part b 22 `expr $base + $part` root:$disk 660
+			makedev hd1$unit$part b 22 `expr $base + $part` root:$disk 660
 		done
 		;;
 	xd[a-d])
-		disk=`expr $arg : "xd\(.\)"`
-		base=`expr \( abcd : ".*$disk" - 1 \) \* 64`
-		makedev xd$disk b 13 $base root:$disk 660
+		unit=`expr $arg : "xd\(.\)"`
+		base=`expr \( abcd : ".*$unit" - 1 \) \* 64`
+		makedev xd$unit b 13 $base root:$disk 660
 		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16
 		do
-		makedev xd$disk$part b 13 `expr $base + $part` root:$disk 660
+			makedev xd$unit$part b 13 `expr $base + $part` root:$disk 660
 		done
 		;;
 	sd[a-h])
-		disk=`expr $arg : "sd\(.\)"`
-		base=`expr \( abcdefgh : ".*$disk" - 1 \) \* 16`
-		makedev sd$disk b 8 $base root:$disk 660
+		unit=`expr $arg : "sd\(.\)"`
+		base=`expr \( abcdefgh : ".*$unit" - 1 \) \* 16`
+		makedev sd$unit b 8 $base root:$disk 660
 		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15
 		do
-		makedev sd$disk$part b 8 `expr $base + $part` root:$disk 660
+			makedev sd$unit$part b 8 `expr $base + $part` root:$disk 660
+		done
+		;;
+	loop)
+		for part in 0 1 2 3 4 5 6 7
+		do
+			makedev loop$part b 12 $part root:$disk 660
 		done
 		;;
 	st[0-1])
-		tape=`expr $arg : "st\(.\)"`
-		makedev st$tape c 9 $tape root:$floppy 660
-		makedev nst$tape c 9 `expr 128 + $tape` root:$floppy 660
+		unit=`expr $arg : "st\(.\)"`
+		makedev st$unit c 9 $unit root:$tape 660
+		makedev nst$unit c 9 `expr 128 + $unit` root:$tape 660
 		;;
 	qic)
 		makedev rmt8       c 12   6 root:$tape 660
@@ -256,15 +252,22 @@ do
 		makedev tape-d     c 12 136 root:$tape 660
 		makedev tape-reset c 12 255 root:$tape 660
 		;;
+	ftape)
+		makedev ftape  c 27 0 root:$tape 660
+		makedev nftape c 27 4 root:$tape 660
+		;;
 	scd[0-1])
-		cdrom=`expr $arg : "scd\(.\)"`
-		makedev scd$cdrom c 11 $cdrom root:$cd 660
+		unit=`expr $arg : "scd\(.\)"`
+		makedev scd$unit c 11 $unit root:$cdrom 660
 		;;
 	sonycd)
-		makedev $arg b 21 0 root:$cd 660
+		makedev $arg b 21 0 root:$cdrom 660
 		;;
 	mcd)
-		makedev $arg b 23 0 root:$cd 660
+		makedev $arg b 23 0 root:$cdrom 660
+		;;
+	sbpcd)
+		makedev $arg b 25 0 root:$cdrom 660
 		;;
 	net)
 		makedev socket   c 16 0 root:$net 600
@@ -277,20 +280,20 @@ do
 		makedev udp      c 18 4 root:$net 600
 		;;
 	we[0-3])
-		part=`expr $arg : "we\(.\)"`
-		makedev $arg c 19 $part root:$net 600
+		card=`expr $arg : "we\(.\)"`
+		makedev $arg c 19 $card root:$net 600
 		;;
 	wd[0-3])
-		part=`expr $arg : "wd\(.\)"`
-		makedev $arg c 20 $part root:$net 600
+		card=`expr $arg : "wd\(.\)"`
+		makedev $arg c 20 $card root:$net 600
 		;;
 	ec[0-3])
-		part=`expr $arg : "ec\(.\)"`
-		makedev $arg c 20 `expr 8 + $part` root:$net 600
+		card=`expr $arg : "ec\(.\)"`
+		makedev $arg c 20 `expr 8 + $card` root:$net 600
 		;;
 	ne[0-3])
-		part=`expr $arg : "ne\(.\)"`
-		makedev $arg c 20 `expr 16 + $part` root:$net 600
+		card=`expr $arg : "ne\(.\)"`
+		makedev $arg c 20 `expr 16 + $card` root:$net 600
 		;;
 	audio)
 		makedev mixer     c 14 0 root:$audio 666
@@ -299,12 +302,17 @@ do
 		makedev dsp       c 14 3 root:$audio 666
 		makedev audio     c 14 4 root:$audio 666
 		;;
+	pcaudio)
+		makedev pcmixer c 30 0 root:$audio 666
+		makedev pcsp    c 30 3 root:$audio 666
+		makedev pcaudio c 30 4 root:$audio 666
+		;;
 	fd)
 		# not really devices, we use the /proc filesystem
-		ln -sf /proc/self/fd fd 
-		ln -sf fd/0 stdin
-		ln -sf fd/1 stdout
-		ln -sf fd/2 stderr
+		symlink fd     /proc/self/fd
+		symlink stdin  fd/0
+		symlink stdout fd/1
+		symlink stderr fd/2
 		;;
 	*)
 		echo "don't know how to make device \"$arg\"" >&2
