@@ -1,11 +1,11 @@
 #! /bin/sh -
-# $Id: MAKEDEV.announce,v 2.0 1994/07/17 20:42:59 alfie Exp $
+# $Id: MAKEDEV.announce,v 2.1 1994/12/04 21:32:53 alfie Exp alfie $
 
 # ( cat << 'EOF'; echo; sed '/=$/d' MAKEDEV-@ID@.lsm ) | /usr/lib/sendmail -t
 ( cat << 'EOF'; echo; cat MAKEDEV-@ID@.lsm ) | /usr/lib/sendmail -t
 From: Nick.Holloway@alfie.demon.co.uk (Nick Holloway)
 Organization: Alfie's Internet Node
-To: linux-announce@tc.cornell.edu
+To: linux-announce@news.ornl.gov
 Subject: ANNOUNCE: MAKEDEV (v@ID@)
 Keywords: MAKEDEV, mknod, Linux, devices
 
@@ -17,65 +17,52 @@ It should become available as:
      tsx-11.mit.edu:/pub/linux/sources/sbin/MAKEDEV-@ID@.tar.gz
     sunsite.unc.edu:/pub/Linux/system/Admin/MAKEDEV-@ID@.tar.gz
 
-IMPORTANT: Rather than being a tar file that extracts as dev/MAKEDEV,
-it now is intended to be extracted into a source directory with the
-constituent files in the directory MAKEDEV-@ID@.  From there "make
-install" will put it into /dev.
+This should provide support for the standard devices available as part
+of the 1.2 Linux kernel, and also for many additional kernel drivers.
 
-This is because my original aim was that MAKEDEV should be as compact and
-self-contained as possible, so as to save precious space on a boot disk.
-Hence, I have extracted some of the extraneous information from the
-MAKEDEV script.
+Apart from the device updates that are detailed below, the changes are
+that it should be faster when using bash or ksh, but still be compatible
+with ash.  It uses /bin/sh, so it will depend on your system as to what us
+actually used.
 
-One benefit is that there is now a manual page, albeit crude.  This I plan
-to expand in later releases.  Any other comments I feel like commiting
-to infamy will be found in the README.
+In addition, the manual page is now more than the skeleton it was last
+released as.
 
-Things on my TODO list are to allow an easy way for support of new devices
-to be added to MAKEDEV.  This would allow developers to include the
-augmentation to MAKEDEV (which wouldn't be a patch, to allow flexibility)
-so that the necessary devices can be made, and would also ensure that
-I had the information to easily update MAKEDEV.
+Details:
 
-What I really need is a `tuit', preferably round.  Apologies for the
-tardiness of this update.
-
-Thanks must go to Matthias Urlichs for his plugging of MAKEDEV.
-
-Generally this release contains changes which consist of minor corrections
-and new devices.
-
-The list of changes for this version are:
-
-    o Split into script, manual page, and readme.
-    o Added version (-V) flag.
-    o Made creation of devices safer ("MAKEDEV std" would get halfway
-      through creating /dev/zero, and would make you reach for emergency
-      boot floppy).
-    o Loop devices are registered with "loop" not "lo".
-    o Support for logiscan, ac4096 and m105 scanners.
-    o Support for 2nd, 3rd and 4th Soundblaster CD drivers.
-    o IDE CD
-    o Cyclades intelligent serial I/O card.
-    o Extra floppy devices for the increased capacities.
-    o Allow up to 8 SCSI tape and CD devices.
-    o Updated sound devices.
-    o Corrected IBCS2 device name.
-    o Support for DCF77 clock.
-    o Support for APM.
-    o Enough knowledge to know to ignore pcmcia driver.
-    o Various augmentations for auto creation of devices.
+*   Rather than making each vt individually, "MAKEDEV console" will make
+    all console devices.  The number done is controlled by the MAXVT
+    setting (default 8).  This creates the vcsX and vcaX devices for
+    each ttyX.
+*   Support for up to 8 floppy drives (fd5-fd8 are on a secondary
+    controller).  I believe all devices for all geometries supported by
+    the kernel are now made.
+*   The devices for parallel ports are made as one ("MAKEDEV lp" rather
+    than "MAKEDEV lp0 lp1 lp2").  This tidies up "MAKEDEV update".
+*   The busmice are now made with names to match the ``Linux Allocated
+    Devices'' (maintained by H. Peter Anvin).
+*   Added hdc and hdb (plus recognition of ide0 and ide1 as registered
+    devices).  This is for the new IDE driver which is part of the 1.2
+    kernel.  Related is the removal of hd1a and hd1b and idecd which
+    are made obsolete.
+*   Added md driver, logical partitions spanning physical disks).
+*   Corrected spelling of Sound Blaster Pro CD device (was spbcd, should
+    be sbpcd).
 
 As usual, if there are any ommisions or errors in MAKEDEV, please let
 me know.
+
+If you wish to have a major number assigned for your kernel driver, then
+contact H. Peter Anvin.  If you want the device to be added to MAKEDEV,
+then contact me.
 
 -- 
 Nick Holloway |  `O O'  | Home: Nick.Holloway@alfie.demon.co.uk
 [aka `Alfie'] | // ^ \\ | Work: Nick.Holloway@parallax.co.uk
 EOF
 
-( cat << 'EOF'; echo; cat MAKEDEV-@ID@.lsm ) | /usr/lib/sendmail -t
-From: Nick.Holloway@alfie.demon.co.uk (Nick Holloway)
-To: lars.wirzenius@helsinki.fi (Lars Wirzenius)
-Subject: MAKEDEV-@ID@.lsm
-EOF
+#( cat << 'EOF'; echo; cat MAKEDEV-@ID@.lsm ) | /usr/lib/sendmail -t
+#From: Nick.Holloway@alfie.demon.co.uk (Nick Holloway)
+#To: lars.wirzenius@helsinki.fi (Lars Wirzenius)
+#Subject: MAKEDEV-@ID@.lsm
+#EOF
