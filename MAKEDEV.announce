@@ -1,13 +1,23 @@
 #! /bin/sh -
-# $Id: MAKEDEV.announce,v 1.1 1993/07/19 11:31:32 alfie Exp alfie $
+# $Id: MAKEDEV.announce,v 1.1 1993/07/19 11:41:28 alfie Exp alfie $
 
-Mail -s "ANNOUCE: new MAKEDEV" linux-announce@tc.cornell.edu << 'EOF'
+/usr/lib/sendmail -t << 'EOF'
+From: alfie@dcs.warwick.ac.uk (Nick Holloway)
+Organization: Department of Computer Science, Univeristy of Warwick, UK.
+To: linux-announce@tc.cornell.edu
+Subject: ANNOUNCE: MAKEDEV (v1.2)
+Keywords: MAKEDEV, mknod, Linux, devices
+
 I have just uploaded to tsx-11.mit.edu and sunsite.unc.edu my version
 of MAKEDEV.  The final resting places is unknown (for now you will have
 to grab it from Incoming at sunsite), but I would guess at:
 
-     tsx-11.mit.edu:/pub/linux/sources/sbin/MAKEDEV.tgz
-    sunsite.unc.edu:/pub/Linux/system/Admin/MAKEDEV.tgz
+     tsx-11.mit.edu:/pub/linux/sources/sbin/MAKEDEV-1.2.tar.gz
+    sunsite.unc.edu:/pub/Linux/system/Admin/MAKEDEV-1.2.tar.gz
+       ftp.funet.fi:/pub/OS/Linux/tools/MAKEDEV-1.2.tar.gz
+
+This fixes a boo-boo in using group names as variables, and thus
+trashing them.  Thanks to Greg Galloway for bringing this to my attention.
 
 It is based fairly heavily on Jim Winstead's version, but as well as
 being updated to include more recent devices, it tends to create related
@@ -21,9 +31,9 @@ less readable source of info for the devices, but it does have groups
 and modes included, and it is easier to add devices for, say, the XT
 disk using "MAKEDEV xd0", than creating all partitions by hand.
 
-It has taken over 2 months to get this cleaned up from when I originally
-planned it (moving house), and I hope that the contents are correct --
-if not please let me know.
+It has taken many months to get this cleaned up from when I originally
+planned it (moving house and just not getting `a round tuit'), and I
+hope that the contents are correct -- if not please let me know.
 
 --
 Nick Holloway |  `O O'  | alfie@dcs.warwick.ac.uk, alfie@warwick.UUCP,

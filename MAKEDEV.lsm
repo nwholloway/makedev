@@ -1,31 +1,55 @@
 #! /bin/sh -
-# $Id: MAKEDEV.lsm,v 1.1 1993/07/19 11:31:32 alfie Exp alfie $
+# $Id: MAKEDEV.lsm,v 1.1 1993/07/19 11:41:28 alfie Exp alfie $
 
-Mail -s 'LSM entry for MAKEDEV' "jeffk@cyberspace.org (Jeff Kopmanis)" << 'EOF'
-Begin
-35:PkgName    = MAKEDEV.tgz
-35:Title      = MAKEDEV
-25:Version    = 1.1
-65:Desc1      = Updated MAKEDEV script to create devices in /dev
-65:Desc2      =
-65:Desc3      =
-65:Author     = Nick Holloway <alfie@dcs.warwick.ac.uk>
-65:MaintBy    = Nick Holloway <alfie@dcs.warwick.ac.uk>
-65:MaintAt1   = tsx-11.mit.edu
-65:PathFile1  = /pub/linux/sources/sbin/MAKEDEV.gz
-65:MaintAt2   = sunsite.unc.edu
-65:PathFile2  = /pub/Linux/system/Admin/MAKEDEV.gz
-65:Required1  = Requires /bin/sh to be a bourne/POSIX compatible shell (bash
-65:Required2  = or ksh) and the external commands expr, rm, mknod, chown,
-65:Required3  = chmod and ln.
-65:CopyPolicy = Freely redistributable
-65:Keywords   = Linux devices MAKEDEV
-15:ApproxSize = 8.9K
-65:Last3Rel   =
-65:Comment1   =
-65:Comment2   =
-65:Comment3   =
-30:CheckedBy  = alfie@dcs.warwick.ac.uk
- 8:Date       = 19JUL93
+/usr/lib/sendmail -t << 'EOF'
+From: alfie@dcs.warwick.ac.uk (Nick Holloway)
+To: jeffk@msen.com (Jeff Kopmanis)
+Subject: LSM entry for MAKEDEV
+
+Begin2
+Title        = MAKEDEV
+Version      = 1.2
+Desc1        = Updated MAKEDEV script to create devices in /dev
+Desc2        =
+Desc3        =
+Desc4        =
+Desc5        =
+Author       = Nick Holloway
+AuthorEmail  = alfie@dcs.warwick.ac.uk
+Maintainer   =
+MaintEmail   =
+Site1        = tsx-11.mit.edu
+Path1        = /pub/linux/sources/sbin
+File1        = MAKEDEV-1.2.tar.gz
+FileSize1    = 2981
+Site2        = sunsite.unc.edu
+Path2        = /pub/Linux/system/Admin
+File2        = MAKEDEV-1.2.tar.gz
+FileSize2    = 2981
+Site3        = ftp.funet.fi
+Path3        = /pub/OS/Linux/tools
+File3        = MAKEDEV-1.2.tar.gz
+FileSize3    = 2981
+Site4        =
+Path4        =
+File4        =
+FileSize4    =
+Required1    = Requires /bin/sh to be a bourne/POSIX compatible shell (bash,
+Required2    = ash or ksh) and the external commands expr, rm, mknod, chown,
+Required3    = chmod and ln.
+Required4    =
+CopyPolicy1  = Freely redistributable
+CopyPolicy2  = 
+Keywords     = MAKEDEV mknod Linux devices
+Comment1     =
+Comment2     =
+Comment3     =
+Comment4     =
+RelFiles1    =
+RelFiles2    =
+RelFiles3    =
+Entered      = 02DEC93
+EnteredBy    = Nick Holloway
+CheckedEmail = alfie@dcs.warwick.ac.uk
 End
 EOF
