@@ -1,5 +1,5 @@
 #! /bin/sh -
-# $Id: MAKEDEV.announce,v 1.4 1994/03/16 14:04:24 alfie Exp alfie $
+# $Id: MAKEDEV.announce,v 2.0 1994/07/17 20:42:59 alfie Exp $
 
 # ( cat << 'EOF'; echo; sed '/=$/d' MAKEDEV-@ID@.lsm ) | /usr/lib/sendmail -t
 ( cat << 'EOF'; echo; cat MAKEDEV-@ID@.lsm ) | /usr/lib/sendmail -t
@@ -9,94 +9,73 @@ To: linux-announce@tc.cornell.edu
 Subject: ANNOUNCE: MAKEDEV (v@ID@)
 Keywords: MAKEDEV, mknod, Linux, devices
 
-This has been rather longer in appearing than I would have liked, but
-life has been in upheaval as I have started a new job, and have had to
-bring my Linux machine onto the Internet.
+[MAKEDEV is the script in /dev which is used to create the devices]
 
-I have just uploaded MAKEDEV to the various ftp sites.  The final resting
-places are unknown, but based on previous locations, I would guess at:
+The latest version of MAKEDEV has just been uploaded to ftp sites.
+It should become available as:
 
      tsx-11.mit.edu:/pub/linux/sources/sbin/MAKEDEV-@ID@.tar.gz
     sunsite.unc.edu:/pub/Linux/system/Admin/MAKEDEV-@ID@.tar.gz
-       ftp.funet.fi:/pub/OS/Linux/tools/MAKEDEV-@ID@.tar.gz
 
-The major change for this release is the ability to query /proc/devices
-for the major number a device has registered with the kernel.
+IMPORTANT: Rather than being a tar file that extracts as dev/MAKEDEV,
+it now is intended to be extracted into a source directory with the
+constituent files in the directory MAKEDEV-@ID@.  From there "make
+install" will put it into /dev.
 
-This coupled with the ability for MAKEDEV to make and delete devices
-as required (thanks to Matthias Urlichs for the idea) opens the way for
-dynamic allocation of major numbers.  So, for your devices to match your
-kernel and the currently loaded modules, add "cd /dev; ./MAKEDEV update"
-to an rc file somewhere.  You might like to check this in a scratch
-directory first.
+This is because my original aim was that MAKEDEV should be as compact and
+self-contained as possible, so as to save precious space on a boot disk.
+Hence, I have extracted some of the extraneous information from the
+MAKEDEV script.
 
-This automatic update feature is not complete.  I do not know all
-of the strings that are used by various drivers in their calls to
-register_{blk,chr}dev.  If you see that MAKEDEV does not know about your
-favourite driver, let me know.
+One benefit is that there is now a manual page, albeit crude.  This I plan
+to expand in later releases.  Any other comments I feel like commiting
+to infamy will be found in the README.
 
-As my Internet connectivity is now dial-up, I can not grab new drivers
-just to see what devices they use.  If developers want their devices to
-be included, the best way is to e-mail me, and tell me what they are.
-The information I need is the names of devices to create, whether they
-are character or block devices, and what string is used in the call
-to register_{chr,blk}dev.
+Things on my TODO list are to allow an easy way for support of new devices
+to be added to MAKEDEV.  This would allow developers to include the
+augmentation to MAKEDEV (which wouldn't be a patch, to allow flexibility)
+so that the necessary devices can be made, and would also ensure that
+I had the information to easily update MAKEDEV.
 
-Also, if anybody managed to get their driver forgotten in my move,
-let me know again.  
+What I really need is a `tuit', preferably round.  Apologies for the
+tardiness of this update.
+
+Thanks must go to Matthias Urlichs for his plugging of MAKEDEV.
+
+Generally this release contains changes which consist of minor corrections
+and new devices.
 
 The list of changes for this version are:
 
-    o The customisation section is now more accesible (at the top).  It is
-      also now possible to specify the user too.
-    o The net devices have been removed, since Net-3 no longer needs them.
-    o Flags are now:
-	-v	be verbose in what is being done
-	-n	don't actually do anything, just report what would be done
-	-d	delete devices instead of creating (used by "update")
-    o Queries /proc/devices for major numbers.  Many devices have a
-      default, but this may change in future.
-    o Added 2.88Mb floppy device (fdxH2880)
-    o Added devices used by ibcs2.
-    o Added helloworld -- device created by module example.
-    o Added update.  Compares /proc/devices with DEVICES, and creates any
-      devices which are new or whose major number has changed, and deletes
-      those which are no longer present.  The current /proc/devices is
-      then stored in DEVICES.
+    o Split into script, manual page, and readme.
+    o Added version (-V) flag.
+    o Made creation of devices safer ("MAKEDEV std" would get halfway
+      through creating /dev/zero, and would make you reach for emergency
+      boot floppy).
+    o Loop devices are registered with "loop" not "lo".
+    o Support for logiscan, ac4096 and m105 scanners.
+    o Support for 2nd, 3rd and 4th Soundblaster CD drivers.
+    o IDE CD
+    o Cyclades intelligent serial I/O card.
+    o Extra floppy devices for the increased capacities.
+    o Allow up to 8 SCSI tape and CD devices.
+    o Updated sound devices.
+    o Corrected IBCS2 device name.
+    o Support for DCF77 clock.
+    o Support for APM.
+    o Enough knowledge to know to ignore pcmcia driver.
+    o Various augmentations for auto creation of devices.
 
-Outstanding issues are the large number of claims on a few major numbers,
-and what the many Matsushita devices are (see <linux/major.h>), and what
-devices have fixed major numbers (hd, xd, sd, fd, etc) since booting
-the kernel relies on this.
-
-It was based fairly heavily on Jim Winstead's version, but as well as
-being updated to include more recent devices, it tends to create related
-groups of devices.  For example, "MAKEDEV fd0" will create all of the
-various floppy devices for the various densities, and "MAKEDEV ttyS0"
-will create ttyS0 and cua0.
-
-This was intended as an adjunct to Rick Miller's ``Linux Device List''
-(from which most of the original information came from), but I haven't
-heard of anything from that for a while.  However, it is possible to
-use MAKEDEV as a quick reference by providing '-n' as an argument:
-
-	$ ./MAKEDEV -n sg
-	sga	= c 21 0 root:system 600
-	sgb	= c 21 1 root:system 600
-	sgc	= c 21 2 root:system 600
-	sgd	= c 21 3 root:system 600
-	sge	= c 21 4 root:system 600
-	sgf	= c 21 5 root:system 600
-	sgg	= c 21 6 root:system 600
-	sgh	= c 21 7 root:system 600
+As usual, if there are any ommisions or errors in MAKEDEV, please let
+me know.
 
 -- 
 Nick Holloway |  `O O'  | Home: Nick.Holloway@alfie.demon.co.uk
-[aka `Alfie'] | // ^ \\ | Work: nickh@parallax.demon.co.uk
+[aka `Alfie'] | // ^ \\ | Work: Nick.Holloway@parallax.co.uk
 EOF
 
-( cat << 'EOF'; echo; cat MAKEDEV-@ID@.lsm ) | cat > /dev/null # /usr/lib/sendmail -t
+( cat << 'EOF'; echo; cat MAKEDEV-@ID@.lsm ) | /usr/lib/sendmail -t
 From: Nick.Holloway@alfie.demon.co.uk (Nick Holloway)
-To: jeffk@msen.com (Jeff Kopmanis)
+To: lars.wirzenius@helsinki.fi (Lars Wirzenius)
 Subject: MAKEDEV-@ID@.lsm
 EOF
