@@ -1,14 +1,6 @@
-#! /bin/sh -
-# $Id: MAKEDEV.lsm,v 1.1 1993/07/19 11:41:28 alfie Exp alfie $
-
-/usr/lib/sendmail -t << 'EOF'
-From: alfie@dcs.warwick.ac.uk (Nick Holloway)
-To: jeffk@msen.com (Jeff Kopmanis)
-Subject: LSM entry for MAKEDEV
-
 Begin2
 Title        = MAKEDEV
-Version      = 1.2
+Version      = @ID@
 Desc1        = Updated MAKEDEV script to create devices in /dev
 Desc2        =
 Desc3        =
@@ -20,16 +12,16 @@ Maintainer   =
 MaintEmail   =
 Site1        = tsx-11.mit.edu
 Path1        = /pub/linux/sources/sbin
-File1        = MAKEDEV-1.2.tar.gz
-FileSize1    = 2981
+File1        = MAKEDEV-@ID@.tar.gz
+FileSize1    = @SIZE@
 Site2        = sunsite.unc.edu
 Path2        = /pub/Linux/system/Admin
-File2        = MAKEDEV-1.2.tar.gz
-FileSize2    = 2981
+File2        = MAKEDEV-@ID@.tar.gz
+FileSize2    = @SIZE@
 Site3        = ftp.funet.fi
 Path3        = /pub/OS/Linux/tools
-File3        = MAKEDEV-1.2.tar.gz
-FileSize3    = 2981
+File3        = MAKEDEV-@ID@.tar.gz
+FileSize3    = @SIZE@
 Site4        =
 Path4        =
 File4        =
@@ -39,7 +31,7 @@ Required2    = ash or ksh) and the external commands expr, rm, mknod, chown,
 Required3    = chmod and ln.
 Required4    =
 CopyPolicy1  = Freely redistributable
-CopyPolicy2  = 
+CopyPolicy2  =
 Keywords     = MAKEDEV mknod Linux devices
 Comment1     =
 Comment2     =
@@ -48,8 +40,7 @@ Comment4     =
 RelFiles1    =
 RelFiles2    =
 RelFiles3    =
-Entered      = 02DEC93
+Entered      = @DATE@
 EnteredBy    = Nick Holloway
 CheckedEmail = alfie@dcs.warwick.ac.uk
 End
-EOF
