@@ -1,6 +1,6 @@
 #! /bin/sh -
 
-RCSID='$Id: MAKEDEV,v 2.0 1994/07/17 20:41:37 alfie Exp alfie $'
+RCSID='$Id: MAKEDEV 2.1 1994/12/04 21:25:49 alfie Exp alfie $'
 
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 # Customisation:
@@ -15,6 +15,7 @@ RCSID='$Id: MAKEDEV,v 2.0 1994/07/17 20:41:37 alfie Exp alfie $'
    kmem="  root kmem   660"
     tty="  root tty    666"
    cons="  root tty    622"	# 622 for console?
+    vcs="  root system 600"
 dialout="  root uucp   660"
   mouse="  root system 666"
 printer="  root daemon 660"
@@ -26,6 +27,8 @@ printer="  root daemon 660"
   audio="  root system 666"
   ibcs2="  root system 666"
 scanner="  root system 666"
+
+MAXVT=8
 
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 
@@ -56,6 +59,8 @@ fi
 
 opts="${opt_n:+-n} ${opt_v:+-v} ${opt_d:+-d}"
 
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+
 makedev () {	# usage: makedev name [bcu] major minor owner group mode
 	if [ "$opt_v" ]
 	then	if [ "$opt_d" ]
@@ -85,6 +90,46 @@ symlink () {	# usage: symlink name target
 	[ ! "$opt_n" ] && rm -f $1 &&
 	[ ! "$opt_d" ] && ln -s $2 $1
 }
+
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+
+# For bash and ksh, we can use faster builtin routines to do manipulation,
+# otherwise (ash) fall back to slower method using `expr'.
+# The extra level of indirection using `eval' is necessary a) for ksh, and
+# b) to get past ash.
+
+if [ "$RANDOM" != "$RANDOM" ]
+then
+	math () {
+		eval echo "\$(($*))"
+	}
+	index () {	# index string c
+		eval "I=\${1%$2*}"
+		eval echo "\${#I}"
+	}
+	suffix () {
+	    eval echo "\${1#$2}"
+	}
+	strip () {
+		eval echo "\${1% $2 *} \${1#* $2 }"
+	}
+else
+	math () {
+		expr "$@"
+	}
+	index () {	# index string c
+		expr $1 : ".*$2" - 1
+	}
+	suffix () {
+		expr "$1" : "$2\(.*\)"
+	}
+	strip () {
+		echo "[$1][$2]" >&2
+		echo "`expr \"$1\" : \"\(.*\) $2 \"` `expr \"$1\" : \".* $2 \(.*\)\"`"
+	}
+fi
+
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 
 devices=
 if [ ! -f $procfs/devices ]
@@ -121,25 +166,31 @@ cvt () {
 	do
 		case "$1" in
 			mem|tty|ttyp|cua|cub)	;;
-			hd)	echo hda hdb ;;
+			hd|ide0)	echo hda hdb ;;
+			ide1)	echo hdc hdd ;;
+			sd)	echo sda sdb ;;
+			sr)	echo scd0 ;;
+			st)	echo st0 ;;
 			xd)	echo xda xdb ;;
 			fd)	echo fd0 fd1 ;;
-			lp)	echo lp0 lp1 lp2 ;;
+			lp)	echo lp ;;
 			mt)	echo ftape ;;
 			loop)	echo loop ;;
+			md)	echo md ;;
 			ibcs2)	echo ibcs2 ;;
 			tpqic02)	echo qic ;;
 			sound)		echo audio ;;
 			logiscan)	echo logiscan ;;
 			ac4096)		echo ac4096 ;;
-			idecd)	echo idecd ;;
 			hw)	echo helloworld ;;
 			sbpcd | sbpcd[123])	echo $1 ;;
 			Joystick)	echo js ;;
 			apm_bios)	echo apm ;;
 			dcf)		echo dcf ;;
+			aztcd)		echo aztcd ;;
 			pcmcia)	;; # taken care of by its own driver
 			ttyC)	echo cyclades ;;
+			vcs)	;;
 			*)	echo "$0: don't know what \"$1\" is" >&2 ;;
 		esac
 		shift
@@ -151,17 +202,17 @@ do
 	case $arg in
 	generic)
 		$0 $opts std
+		$0 $opts fd
 		$0 $opts fd0 fd1
 		$0 $opts hda hdb
 		$0 $opts xda xdb
 		$0 $opts sda sdb
 		$0 $opts ptyp ptyq ptyr ptys
-		$0 $opts console tty1 tty2 tty3 tty4 tty5 tty6 tty7 tty8
+		$0 $opts console
 		$0 $opts ttyS0 ttyS1 ttyS2 ttyS3
 		$0 $opts busmice
-		$0 $opts lp0 lp1 lp2
-		$0 $opts par0 par1 par2
-		$0 $opts fd
+		$0 $opts lp
+		$0 $opts par
 		;;
 	local)
 		$0.local $opts
@@ -177,28 +228,43 @@ do
 		makedev ram  b 1 1 $disk
 		makedev tty  c 5 0 $tty
 		;;
-	console|tty0)
-		makedev $arg c 4 0 $cons
+	console)
+		major=`Major vcs`	# not fatal
+		# console
+		makedev tty0 c 4 0 $cons
+		symlink console tty0
+		[ "$major" ] && makedev vcs0 c $major 0 $vcs
+		[ "$major" ] && makedev vcsa c $major 128 $vcs
+		# individual vts
+		line=1
+		while [ $line -le $MAXVT -a $line -le 63 ]
+		do
+			makedev tty$line c 4 $line $tty
+			[ "$major" ] && makedev vcs$line c $major $line $vcs
+			[ "$major" ] && makedev vcsa$line c $major `math $line + 128` $vcs
+			line=`math $line + 1`
+		done
 		;;
 	tty[1-9]|tty[1-5][0-9]|tty[6][0-3])
-		line=`expr $arg : "tty\(.*\)"`
+		line=`suffix $arg tty`
 		makedev tty$line c 4 $line $tty
 		;;
 	ttyS[0-9]|ttyS[1-5][0-9]|ttyS[6][0-3])
-		line=`expr $arg : "ttyS\(.*\)"`
-		minor=`expr 64 + $line`
+		line=`suffix $arg ttyS`
+		minor=`math 64 + $line`
 		makedev ttyS$line c 4 $minor $tty
 		makedev cua$line c 5 $minor $dialout
 		;;
 	pty[p-s])
 		# Currently limited to 64 master/slave pairs.
-		bank=`expr $arg : "pty\(.\)"`
-		base=`expr \( pqrs : ".*$bank" - 1 \) \* 16`
+		bank=`suffix $arg pty`
+		base=`index pqrs $bank`
+		base=`math $base \* 16`
 		for i in 0 1 2 3 4 5 6 7 8 9 a b c d e f
 		do
-			j=`expr 0123456789abcdef : ".*$i" - 1`
-			makedev pty$bank$i c 4 `expr 128 + $base + $j` $tty
-			makedev tty$bank$i c 4 `expr 192 + $base + $j` $tty
+			j=`index 0123456789abcdef $i`
+			makedev pty$bank$i c 4 `math 128 + $base + $j` $tty
+			makedev tty$bank$i c 4 `math 192 + $base + $j` $tty
 		done
 		;;
 	cyclades)
@@ -206,93 +272,117 @@ do
 		major2=`Major cub` || continue
 		for i in 0 1 2 3 4 5 6 7 # 8 9 10 11 12 13 14 15
 		do
-			makedev ttyC$i c $major1 `expr 32 + $i` $tty
-			makedev cub$i c $major2 `expr 32 + $i` $dialout
+			makedev ttyC$i c $major1 `math 32 + $i` $tty
+			makedev cub$i c $major2 `math 32 + $i` $dialout
 		done
 		;;
-	par[0-2])
-		major=`Major lp 6` || continue
-		port=`expr $arg : "par\(.\)"`
-		makedev $arg c $major $port $printer
+	lp)
+		major=`Major lp` || continue
+		makedev ${arg}0 c $major 0 $printer
+		makedev ${arg}1 c $major 1 $printer
+		makedev ${arg}2 c $major 2 $printer
 		;;
-	lp[0-2])
-		major=`Major lp 6` || continue
-		port=`expr $arg : "lp\(.\)"`
-		makedev $arg c $major $port $printer
+	par)
+		major=`Major lp` || continue
+		makedev ${arg}0 c $major 0 $printer
+		makedev ${arg}1 c $major 1 $printer
+		makedev ${arg}2 c $major 2 $printer
 		;;
 	busmice)
 		major=`Major mouse 10` || continue
-		makedev logibm   c $major 0 $mouse
-		makedev psaux    c $major 1 $mouse
-		makedev inportbm c $major 2 $mouse
-		makedev atibm    c $major 3 $mouse
-		# makedev sejin    c $major 4 $mouse
+		makedev logimouse c $major 0 $mouse
+		makedev psmouse   c $major 1 $mouse
+		makedev msmouse   c $major 2 $mouse
+		makedev atimouse  c $major 3 $mouse
+		makedev jmouse    c $major 4 $mouse
 		;;
 	js)
 		major=`Major Joystick` || continue
 		makedev js0 c $major 0 $mouse
 		makedev js1 c $major 1 $mouse
 		;;
-	fd[0-4])
+	fd[0-7])
 		major=`Major fd 2` || continue
-		unit=`expr $arg : "fd\(.\)"`
-		makedev fd${unit} b $major $unit $floppy
-		makedev fd${unit}d360  b $major `expr $unit +  4` $floppy
-		makedev fd${unit}h1200 b $major `expr $unit +  8` $floppy
-		makedev fd${unit}D360  b $major `expr $unit + 12` $floppy
-		symlink fd${unit}H360 fd${unit}D360
-		makedev fd${unit}D720  b $major `expr $unit + 16` $floppy
-		symlink fd${unit}H720 fd${unit}D720
-		makedev fd${unit}h360  b $major `expr $unit + 20` $floppy
-		makedev fd${unit}h720  b $major `expr $unit + 24` $floppy
-		makedev fd${unit}H1440 b $major `expr $unit + 28` $floppy
-		makedev fd${unit}E2880 b $major `expr $unit + 32` $floppy
-		makedev fd${unit}CompaQ b $major `expr $unit + 36` $floppy
+		base=`suffix $arg fd`
+		if [ $base -ge 4 ]
+		then
+			base=`math $base + 124`
+		fi
+		makedev ${arg} b $major $base $floppy
+		makedev ${arg}d360  b $major `math $base +  4` $floppy
+		makedev ${arg}h1200 b $major `math $base +  8` $floppy
+		makedev ${arg}D360  b $major `math $base + 12` $floppy
+		makedev ${arg}D720  b $major `math $base + 16` $floppy
+		makedev ${arg}h360  b $major `math $base + 20` $floppy
+		makedev ${arg}h720  b $major `math $base + 24` $floppy
+		makedev ${arg}H1440 b $major `math $base + 28` $floppy
+		makedev ${arg}E2880 b $major `math $base + 32` $floppy
+		makedev ${arg}CompaQ b $major `math $base + 36` $floppy
 
-		makedev fd${unit}h1440 b $major `expr $unit + 40` $floppy
-		makedev fd${unit}H1680 b $major `expr $unit + 44` $floppy
-		makedev fd${unit}h410  b $major `expr $unit + 48` $floppy
-		makedev fd${unit}H820  b $major `expr $unit + 52` $floppy
-		makedev fd${unit}h1476 b $major `expr $unit + 56` $floppy
-		makedev fd${unit}H1722 b $major `expr $unit + 60` $floppy
-		makedev fd${unit}h420  b $major `expr $unit + 64` $floppy
-		makedev fd${unit}H830  b $major `expr $unit + 68` $floppy
-		makedev fd${unit}h1494 b $major `expr $unit + 72` $floppy
-		makedev fd${unit}H1743 b $major `expr $unit + 76` $floppy
+		symlink ${arg}H360 ${arg}D360
+		symlink ${arg}H720 ${arg}D720
+
+		makedev ${arg}h1440 b $major `math $base + 40` $floppy
+		makedev ${arg}H1680 b $major `math $base + 44` $floppy
+		makedev ${arg}h410  b $major `math $base + 48` $floppy
+		makedev ${arg}H820  b $major `math $base + 52` $floppy
+		makedev ${arg}h1476 b $major `math $base + 56` $floppy
+		makedev ${arg}H1722 b $major `math $base + 60` $floppy
+		makedev ${arg}h420  b $major `math $base + 64` $floppy
+		makedev ${arg}H830  b $major `math $base + 68` $floppy
+		makedev ${arg}h1494 b $major `math $base + 72` $floppy
+		makedev ${arg}H1743 b $major `math $base + 76` $floppy
+		makedev ${arg}h880  b $major `math $base + 80` $floppy
+		makedev ${arg}D1040 b $major `math $base + 84` $floppy
+		makedev ${arg}D1120 b $major `math $base + 88` $floppy
+		makedev ${arg}h1600 b $major `math $base + 92` $floppy
+		makedev ${arg}H1760 b $major `math $base + 96` $floppy
+		makedev ${arg}H1920 b $major `math $base + 100` $floppy
+		makedev ${arg}E3200 b $major `math $base + 104` $floppy
+		makedev ${arg}E3520 b $major `math $base + 108` $floppy
+		makedev ${arg}E3840 b $major `math $base + 112` $floppy
+		makedev ${arg}H1840 b $major `math $base + 116` $floppy
+		makedev ${arg}D800  b $major `math $base + 120` $floppy
+		makedev ${arg}H1600 b $major `math $base + 124` $floppy
 		;;
-	hd[a-d])
-		major=`Major hd 3` || continue
-		unit=`expr $arg : "hd\(.\)"`
-		base=`expr \( abcd : ".*$unit" - 1 \) \* 64`
+	hd[a-b])
+		major=`Major ide0` || major=`Major hd 3` || continue
+		unit=`suffix $arg hd`
+		base=`index ab $unit`
+		base=`math $base \* 64`
 		makedev hd$unit b $major $base $disk
-		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16
+		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16 17 18 19 20
+		do
+			makedev hd$unit$part b $major `math $base + $part` $disk
+		done
+		;;
+	hd[c-d])
+		major=`Major ide1 22` || continue
+		unit=`suffix $arg hd`
+		base=`index cd $unit`
+		base=`math $base \* 64`
+		makedev hd$unit b $major $base $disk
+		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16 17 18 19 20
 		do
 			makedev hd$unit$part b $major `expr $base + $part` $disk
 		done
 		;;
-	hd1[a-d])
-		unit=`expr $arg : "hd1\(.\)"`
-		base=`expr \( abcd : ".*$unit" - 1 \) \* 64`
-		makedev hd1$unit b 22 $base $disk
-		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16
-		do
-			makedev hd1$unit$part b 22 `expr $base + $part` $disk
-		done
-		;;
 	xd[a-d])
 		major=`Major xd 13` || continue
-		unit=`expr $arg : "xd\(.\)"`
-		base=`expr \( abcd : ".*$unit" - 1 \) \* 64`
+		unit=`suffix $arg xd`
+		base=`index abcd $unit`
+		base=`math $base \* 64`
 		makedev xd$unit b $major $base $disk
-		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16
+		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16 17 18 19 20
 		do
 			makedev xd$unit$part b $major `expr $base + $part` $disk
 		done
 		;;
 	sd[a-h])
 		major=`Major sd 8` || continue
-		unit=`expr $arg : "sd\(.\)"`
-		base=`expr \( abcdefgh : ".*$unit" - 1 \) \* 16`
+		unit=`suffix $arg sd`
+		base=`index abcdefgh $unit`
+		base=`math $base \* 16`
 		makedev sd$unit b $major $base $disk
 		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15
 		do
@@ -307,11 +397,18 @@ do
 			makedev loop$part b $major $part $disk
 		done
 		;;
+	md)
+		major=`Major md` || continue
+		for part in 0 1 2 3
+		do
+			makedev md$part b $major $part $disk
+		done
+		;;
 	st[0-7])
 		major=`Major st 9`
-		unit=`expr $arg : "st\(.\)"`
+		unit=`suffix $arg st`
 		makedev st$unit c $major $unit $tape
-		makedev nst$unit c $major `expr 128 + $unit` $tape
+		makedev nst$unit c $major `math 128 + $unit` $tape
 		;;
 	qic)
 		major=`Major tpqic02 12`
@@ -325,14 +422,14 @@ do
 		for unit in 0 1 2 3
 		do
 			makedev rft$unit c $major $unit $tape
-			makedev nrft$unit c $major `expr $unit + 4` $tape
+			makedev nrft$unit c $major `math $unit + 4` $tape
 		done
 		symlink ftape rft0
 		symlink nftape nrft0
 		;;
 	scd[0-7])
 		major=`Major sr 11` || continue
-		unit=`expr $arg : "scd\(.\)"`
+		unit=`suffix $arg scd`
 		makedev scd$unit b $major $unit $cdrom
 		;;
 	sonycd)
@@ -351,17 +448,19 @@ do
 		;;
 	sbpcd|sbpcd[123])
 		major=`Major $arg` || continue
-		base=`expr ${arg}0 : "sbpcd\(.\)"`
+		base=`suffix ${arg}0 sbpcd`
+		# base=`expr ${arg}0 : "sbpcd\(.\)"`
 		for minor in 0 1 2 3
 		do
+			# XXX
 			unit=`expr substr 0123456789abcdef \( $base \* 4 + $minor + 1 \) 1`
-			makedev spbcd$unit b $major $minor $cdrom
+			makedev sbpcd$unit b $major $minor $cdrom
 		done
 		[ $arg = sbpcd ] && symlink $arg ${arg}0
 		;;
-	idecd)
-		major=`Major idecd` || continue
-		makedev $arg c $major 0 $cdrom
+	aztcd)
+		major=`Major $arg` || continue
+		makedev ${arg}0 b $major 0 $cdrom
 		;;
 	logiscan)
 		major=`Major logiscan` || continue
@@ -403,7 +502,8 @@ do
 		major=`Major sg 21`
 		for unit in a b c d e f g h
 		do
-			minor=`expr abcdefgh : ".*$unit" - 1`
+			minor=`index abcdefgh $unit`
+			# minor=`expr abcdefgh : ".*$unit" - 1`
 			makedev $arg$unit c $major $minor $scsi
 		done
 		;;
@@ -461,13 +561,14 @@ do
 				then
 					create="$create "`cvt $device`
 				fi
-				devs=`expr "$devs" : "\(.*\) $device"``expr "$devs" : ".* $device\(.*\)"`
+				devs=`strip " $devs " $device`
+				# devs=`expr "$devs" : "\(.*\) $device"``expr "$devs" : ".* $device\(.*\)"`
 			done
 			exec 3<&-
 		fi
 		create="$create "`cvt $devs`
-		$0 $opts -d $delete
-		$0 $opts $create
+		[ "$delete" != "" ] && $0 $opts -d $delete
+		[ "$create" != " " ] && $0 $opts $create
 		[ "$opt_n" ] && continue
 		for device in $devices
 		do
