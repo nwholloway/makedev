@@ -1,27 +1,48 @@
 #! /bin/sh -
 
-# $Id: MAKEDEV,v 1.3 1994/01/04 10:27:24 alfie Exp alfie $
+# $Id: MAKEDEV,v 1.4 1994/03/14 17:07:49 alfie Exp alfie $
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+# Customisation:
+#   The devices fall into various classes.  This section contains the mapping
+# from a class name into a group name and permission.
+#   You will almost certainly need to edit the group name to match your
+# system, and you may change the permissions to suit your preference.  These
+# lines _must_ be of the format "user group perm".
+
+ public="  root system 666"
+   kmem="  root kmem   660"
+    tty="  root tty    666"
+   cons="  root tty    622"	# 622 for console?
+dialout="  root uucp   660"
+  mouse="  root system 666"
+printer="  root daemon 660"
+ floppy="  root floppy 660"
+   disk="  root disk   660"
+   scsi="  root system 600"
+  cdrom="  root disk   660"
+   tape="  root disk   660"
+  audio="  root system 666"
+  ibcs2="  root system 666"
+scanner="  root system 666"
+
+#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 #
 # This is my attempt at a MAKEDEV script.  IMHO it cleans up many areas.
 # It can be used to determine the necessary info for a device without
 # actually creating it using the '-n' flag.
 #
-# It is based (heavily) on Jim Winstead's version and my main source of
-# information has been Rick Miller's Linux device list.
-#
 # It makes less individual devices and tends to make classes of devices
 # (eg "MAKEDEV hda" will create "hda" and the 8 partitions; "MAKEDEV ptyp"
 # will create the ptyp[0-f] master and ttyp[0-f] slave devices).
 #
-# The group used for the devices are changeable at the head of the script,
-# so you can edit these to match the groups on your system, or your whims.
-#
 # If you are aware of any glaring omissions or errors, please let me know.
+# Also, if you are a developer who wants your devices supported by MAKEDEV,
+# let me know.
 #
-# Thanks to Ian Jackson for help and encouragement.
+# Thanks to Ian Jackson for the original help and encouragement.
 # 
-# 	Nick Holloway <alfie@dcs.warwick.ac.uk>  
-#					Last changed: 31st January 1994
+# 	Nick Holloway <Nick.Holloway@alfie.demon.co.uk>  
+#					Last changed: 17th July 1994
 # 
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 # Device 'make' file.  Valid arguments:
@@ -29,6 +50,8 @@
 #	generic		create a generic subset of devices
 #	local		configuration specific devices (runs MAKEDEV.local)
 #	std		standard devices
+#	update		create and delete devices based on current devices
+#			registered in running kernel
 #  Virtual Terminals:
 #	console		(also known as tty0)
 #	tty{0..63}	virtual consoles
@@ -61,104 +84,157 @@
 #	cdu535		Sony CDU-535 CD player
 #	lmscd		LMS/Philips CD player	(needs new major number)
 #	sbpcd		Sound Blaster CD player
-#  Networking:
-#	net		various protocol control devices (?)
-#	we[0-3],wd[0-3],ec[0-3],ne[0-3]
-#			various net interfaces (?)
+#	idecd		NEC CDR-260
+#  Scanner:
+#	scan		Logitech ScanMan32 & ScanMan 256
 #  Audio:
 #	audio		various audio devices
 #	pcaudio		audio devices used by pcsndrv
 #  Misc:
 #       sg		generic SCSI devices
 #	fd		file names for file descriptors
+#	ibcs2		devices (and symlinks) needed by ibcs2 emulation
+#	helloworld	module demonstration device
 #
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 
-# Define what group a collection of devices will be created with -- you will
-# probably need to edit the right hand side to to match your groups.
+opt_v=
+opt_d=
+opt_n=
 
- system=system
-   kmem=kmem
-    tty=tty
-dialout=uucp
-  mouse=system
-printer=daemon
- floppy=floppy
-   disk=disk
-  cdrom=disk
-   tape=disk
-    net=system
-  audio=system
+while [ $# -ge 1 ]
+do
+	case $1 in
+		--)	shift; break ;;
+		-v)	shift; opt_v=1 ;;
+		-d)	shift; opt_d=1 ;;
+		-n)	shift; opt_n=1; opt_v=1 ;;
+		-*)	echo "$0: unknown flag \"$1\"" >&2; exit 1 ;;
+		*)	break ;;
+	esac
+done
 
-#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
+opts="${opt_n:+-n} ${opt_v:+-v} ${opt_d:+-d}"
 
-makedev () {	# usage: makedev name [bcu] major minor owner:group mode
-	rm -f $1
-	mknod $1 $2 $3 $4 &&
-	chown $5 $1 &&
-	chmod $6 $1
+makedev () {	# usage: makedev name [bcu] major minor owner group mode
+	if [ "$opt_v" ]
+	then	if [ "$opt_d" ]
+		then	echo "rm -f $1"
+		else	echo "$1	= $2 $3 $4 $5:$6 $7" 
+		fi
+	fi
+	[ ! "$opt_n" ] && rm -f $1 &&
+	[ ! "$opt_d" ] && mknod $1 $2 $3 $4 &&
+		chown $5:$6 $1 &&
+		chmod $7 $1
 }
 symlink () {	# usage: symlink name target
-	rm -f $1
-	ln -s $2 $1
+	if [ "$opt_v" ]
+	then	if [ "$opt_d" ]
+		then	echo "rm -f $1"
+		else	echo "$1	-> $2"
+		fi
+	fi
+	[ ! "$opt_n" ] && rm -f $1 &&
+	[ ! "$opt_d" ] && ln -s $2 $1
 }
 
-debug=
-if [ _"-n" = _"$1" ]
+devices=
+if [ ! -f /proc/devices ]
 then
-	shift 
-	debug=-n
-	makedev () { 
-		echo "$1 = $2 $3 $4 $5 $6" 
-	}
-	symlink () {
-		echo "$1 -> $2"
-	}
+	echo "$0: warning: can't read /proc/devices" >&2
+else
+	exec 3</proc/devices
+	while read major device <&3
+	do
+		case "$major" in
+			Character|Block|'')
+				;;
+			*)
+				eval "major_$device=$major"
+				devices="$devices $device"
+				;;
+		esac
+	done
+	exec 3<&-
 fi
 
+Major () {
+	device=$2
+	if [ "$opt_d" ]
+	then
+		echo -1
+	else
+		eval echo \${major_$1:-\${device:?\"unknown major number for $1\"}}
+	fi
+}
+
+cvt () {
+	while [ $# -ne 0 ]
+	do
+		case "$1" in
+			mem|tty)	;;
+			hd)	echo hda hdb ;;
+			xd)	echo xda xdb ;;
+			fd)	echo fd0 fd1 ;;
+			lp)	echo lp0 lp1 lp2 ;;
+			mt)	echo ftape ;;
+			lo)	echo loop ;;
+			ibcs2)	echo ibcs2 ;;
+			tpqic02)	echo qic ;;
+			sound)		echo audio ;;
+			Scanner)	echo scan ;;
+			idecd)	echo idecd ;;
+			hw)	echo helloworld ;;
+			*)	echo "$0: don't know what \"$1\" is" >&2 ;;
+		esac
+		shift
+	done
+}
 
 for arg
 do
 	case $arg in
 	generic)
-		sh $0 $debug std
-		sh $0 $debug fd0 fd1
-		sh $0 $debug hda hdb
-		sh $0 $debug xda xdb
-		sh $0 $debug sda sdb
-		sh $0 $debug ptyp ptyq ptyr ptys
-		sh $0 $debug console tty1 tty2 tty3 tty4 tty5 tty6 tty7 tty8
-		sh $0 $debug ttyS0 ttyS1 ttyS2 ttyS3
-		sh $0 $debug busmice
-		sh $0 $debug lp0 lp1 lp2
-		sh $0 $debug par0 par1 par2
+		$0 $opts std
+		$0 $opts fd0 fd1
+		$0 $opts hda hdb
+		$0 $opts xda xdb
+		$0 $opts sda sdb
+		$0 $opts ptyp ptyq ptyr ptys
+		$0 $opts console tty1 tty2 tty3 tty4 tty5 tty6 tty7 tty8
+		$0 $opts ttyS0 ttyS1 ttyS2 ttyS3
+		$0 $opts busmice
+		$0 $opts lp0 lp1 lp2
+		$0 $opts par0 par1 par2
+		$0 $opts fd
 		;;
 	local)
-		sh $0.local $debug
+		$0.local $opts
 		;;
 	std)
-		makedev mem  c 1 1 root:$kmem   660
-		makedev kmem c 1 2 root:$kmem   660
-		makedev null c 1 3 root:$system 666
-		makedev port c 1 4 root:$kmem   660
-		makedev zero c 1 5 root:$system 666
-	#	makedev core c 1 6 root:$kmem   660
-		makedev full c 1 7 root:$system 666
-		makedev ram  b 1 1 root:$disk   660
-		makedev tty  c 5 0 root:$tty    666
+		makedev mem  c 1 1 $kmem
+		makedev kmem c 1 2 $kmem
+		makedev null c 1 3 $public
+		makedev port c 1 4 $kmem
+		makedev zero c 1 5 $public
+		symlink core /proc/kcore
+		makedev full c 1 7 $public
+		makedev ram  b 1 1 $disk
+		makedev tty  c 5 0 $tty
 		;;
-	console)
-		makedev console c 4 0 root:$tty 622
+	console|tty0)
+		makedev $arg c 4 0 $cons
 		;;
-	tty[0-9]|tty[1-5][0-9]|tty[6][0-3])
+	tty[1-9]|tty[1-5][0-9]|tty[6][0-3])
 		line=`expr $arg : "tty\(.*\)"`
-		makedev tty$line c 4 $line root:$tty 622
+		makedev tty$line c 4 $line $tty
 		;;
 	ttyS[0-9]|ttyS[1-5][0-9]|ttyS[6][0-3])
 		line=`expr $arg : "ttyS\(.*\)"`
 		minor=`expr 64 + $line`
-		makedev ttyS$line c 4 $minor root:$tty 666
-		makedev cua$line c 5 $minor root:$dialout 660
+		makedev ttyS$line c 4 $minor $tty
+		makedev cua$line c 5 $minor $dialout
 		;;
 	pty[p-s])
 		# Currently limited to 64 master/slave pairs.
@@ -167,167 +243,169 @@ do
 		for i in 0 1 2 3 4 5 6 7 8 9 a b c d e f
 		do
 			j=`expr 0123456789abcdef : ".*$i" - 1`
-			makedev pty$bank$i c 4 `expr 128 + $base + $j` root:$tty 666
-			makedev tty$bank$i c 4 `expr 192 + $base + $j` root:$tty 666
+			makedev pty$bank$i c 4 `expr 128 + $base + $j` $tty
+			makedev tty$bank$i c 4 `expr 192 + $base + $j` $tty
 		done
 		;;
 	par[0-2])
+		major=`Major lp 6` || continue
 		port=`expr $arg : "par\(.\)"`
-		makedev $arg c 6 $port root:$printer 660 
+		makedev $arg c $major $port $printer
 		;;
 	lp[0-2])
+		major=`Major lp 6` || continue
 		port=`expr $arg : "lp\(.\)"`
-		makedev $arg c 6 $port root:$printer 660 
+		makedev $arg c $major $port $printer
 		;;
 	busmice)
-		makedev logibm   c 10 0 root:$mouse 666
-		makedev psaux    c 10 1 root:$mouse 666
-		makedev inportbm c 10 2 root:$mouse 666
-		makedev atibm    c 10 3 root:$mouse 666
+		major=`Major mouse 10` || continue
+		makedev logibm   c $major 0 $mouse
+		makedev psaux    c $major 1 $mouse
+		makedev inportbm c $major 2 $mouse
+		makedev atibm    c $major 3 $mouse
 		;;
 	js)
-		makedev js0 c 15 0 root:$mouse 666
-		makedev js1 c 15 1 root:$mouse 666
+		makedev js0 c 15 0 $mouse
+		makedev js1 c 15 1 $mouse
 		;;
 	fd[0-4])
 		unit=`expr $arg : "fd\(.\)"`
-		makedev fd$unit b 2 $unit root:$floppy 660
-		makedev fd${unit}d360  b 2 `expr $unit +  4` root:$floppy 660
-		makedev fd${unit}h1200 b 2 `expr $unit +  8` root:$floppy 660
-		makedev fd${unit}D360  b 2 `expr $unit + 12` root:$floppy 660
-		makedev fd${unit}H360  b 2 `expr $unit + 12` root:$floppy 660
-		makedev fd${unit}D720  b 2 `expr $unit + 16` root:$floppy 660
-		makedev fd${unit}H720  b 2 `expr $unit + 16` root:$floppy 660
-		makedev fd${unit}h360  b 2 `expr $unit + 20` root:$floppy 660
-		makedev fd${unit}h720  b 2 `expr $unit + 24` root:$floppy 660
-		makedev fd${unit}H1440 b 2 `expr $unit + 28` root:$floppy 660
+		makedev fd${unit} b 2 $unit $floppy
+		makedev fd${unit}d360  b 2 `expr $unit +  4` $floppy
+		makedev fd${unit}h1200 b 2 `expr $unit +  8` $floppy
+		makedev fd${unit}D360  b 2 `expr $unit + 12` $floppy
+		makedev fd${unit}H360  b 2 `expr $unit + 12` $floppy
+		makedev fd${unit}D720  b 2 `expr $unit + 16` $floppy
+		makedev fd${unit}H720  b 2 `expr $unit + 16` $floppy
+		makedev fd${unit}h360  b 2 `expr $unit + 20` $floppy
+		makedev fd${unit}h720  b 2 `expr $unit + 24` $floppy
+		makedev fd${unit}H1440 b 2 `expr $unit + 28` $floppy
+		makedev fd${unit}H2880 b 2 `expr $unit + 32` $floppy
 		;;
 	hd[a-d])
 		unit=`expr $arg : "hd\(.\)"`
 		base=`expr \( abcd : ".*$unit" - 1 \) \* 64`
-		makedev hd$unit b 3 $base root:$disk 660
+		makedev hd$unit b 3 $base $disk
 		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16
 		do
-			makedev hd$unit$part b 3 `expr $base + $part` root:$disk 660
+			makedev hd$unit$part b 3 `expr $base + $part` $disk
 		done
 		;;
 	hd1[a-d])
 		unit=`expr $arg : "hd1\(.\)"`
 		base=`expr \( abcd : ".*$unit" - 1 \) \* 64`
-		makedev hd1$unit b 22 $base root:$disk 660
+		makedev hd1$unit b 22 $base $disk
 		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16
 		do
-			makedev hd1$unit$part b 22 `expr $base + $part` root:$disk 660
+			makedev hd1$unit$part b 22 `expr $base + $part` $disk
 		done
 		;;
 	xd[a-d])
+		major=`Major xd 13` || continue
 		unit=`expr $arg : "xd\(.\)"`
 		base=`expr \( abcd : ".*$unit" - 1 \) \* 64`
-		makedev xd$unit b 13 $base root:$disk 660
+		makedev xd$unit b $major $base $disk
 		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15 16
 		do
-			makedev xd$unit$part b 13 `expr $base + $part` root:$disk 660
+			makedev xd$unit$part b $major `expr $base + $part` $disk
 		done
 		;;
 	sd[a-h])
+		major=`Major sd 8` || continue
 		unit=`expr $arg : "sd\(.\)"`
 		base=`expr \( abcdefgh : ".*$unit" - 1 \) \* 16`
-		makedev sd$unit b 8 $base root:$disk 660
+		makedev sd$unit b $major $base $disk
 		for part in 1 2 3 4 5 6 7 8 # 9 10 11 12 13 14 15
 		do
-			makedev sd$unit$part b 8 `expr $base + $part` root:$disk 660
+			minor=`expr $base + $part`
+			makedev sd$unit$part b $major $minor $disk
 		done
 		;;
 	loop)
+		major=`Major lo` || continue
 		for part in 0 1 2 3 4 5 6 7
 		do
-			makedev loop$part b 12 $part root:$disk 660
+			makedev loop$part b $major $part $disk
 		done
 		;;
 	st[0-1])
+		major=`Major st 9`
 		unit=`expr $arg : "st\(.\)"`
-		makedev st$unit c 9 $unit root:$tape 660
-		makedev nst$unit c 9 `expr 128 + $unit` root:$tape 660
+		makedev st$unit c $major $unit $tape
+		makedev nst$unit c $major `expr 128 + $unit` $tape
 		;;
 	qic)
-		makedev rmt8       c 12   6 root:$tape 660
-		makedev rmt16      c 12   8 root:$tape 660
-		makedev tape-d     c 12 136 root:$tape 660
-		makedev tape-reset c 12 255 root:$tape 660
+		major=`Major tpqic02 12`
+		makedev rmt8       c $major   6 $tape
+		makedev rmt16      c $major   8 $tape
+		makedev tape-d     c $major 136 $tape
+		makedev tape-reset c $major 255 $tape
 		;;
 	ftape)
-		makedev ftape  c 27 0 root:$tape 660
-		makedev nftape c 27 4 root:$tape 660
+		major=`Major mt 27` || continue
+		for unit in 0 1 2 3
+		do
+			makedev rft$unit c $major $unit $tape
+			makedev nrft$unit c $major `expr $unit + 4` $tape
+		done
+		symlink ftape rft0
+		symlink nftape nrft0
 		;;
 	scd[0-1])
+		major=`Major sr 11` || continue
 		unit=`expr $arg : "scd\(.\)"`
-		makedev scd$unit b 11 $unit root:$cdrom 660
+		makedev scd$unit b $major $unit $cdrom
 		;;
 	sonycd)
-		makedev $arg b 15 0 root:$cdrom 660
+		major=`Major cdu31a 15` || continue
+		makedev $arg b $major 0 $cdrom
 		;;
 	mcd)
-		makedev $arg b 23 0 root:$cdrom 660
+		major=`Major mcd 23` || continue
+		makedev $arg b $major 0 $cdrom
 		;;
 	cdu535)
-		makedev $arg b 24 0 root:$cdrom 660
+		makedev $arg b 24 0 $cdrom
 		;;
 	lmscd)
-		makedev $arg b 24 0 root:$cdrom 660
+		makedev $arg b 24 0 $cdrom
 		;;
 	sbpcd)
-		makedev $arg b 25 0 root:$cdrom 660
-		makedev ${arg}0 b 25 0 root:$cdrom 660
-		makedev ${arg}1 b 25 1 root:$cdrom 660
-		makedev ${arg}2 b 25 2 root:$cdrom 660
-		makedev ${arg}3 b 25 3 root:$cdrom 660
+		major=`Major sbpcd 25` || continue
+		makedev $arg    b $major 0 $cdrom
+		makedev ${arg}0 b $major 0 $cdrom
+		makedev ${arg}1 b $major 1 $cdrom
+		makedev ${arg}2 b $major 2 $cdrom
+		makedev ${arg}3 b $major 3 $cdrom
 		;;
-	net)
-		makedev socket   c 16 0 root:$net 600
-		makedev arp      c 16 1 root:$net 600
-		makedev unix     c 17 0 root:$net 600
-		makedev inet     c 18 0 root:$net 600
-		makedev ip       c 18 1 root:$net 600
-		makedev icmp     c 18 2 root:$net 600
-		makedev tcp      c 18 3 root:$net 600
-		makedev udp      c 18 4 root:$net 600
-		;;
-	we[0-3])
-		card=`expr $arg : "we\(.\)"`
-		makedev $arg c 19 $card root:$net 600
-		;;
-	wd[0-3])
-		card=`expr $arg : "wd\(.\)"`
-		makedev $arg c 20 $card root:$net 600
-		;;
-	ec[0-3])
-		card=`expr $arg : "ec\(.\)"`
-		makedev $arg c 20 `expr 8 + $card` root:$net 600
-		;;
-	ne[0-3])
-		card=`expr $arg : "ne\(.\)"`
-		makedev $arg c 20 `expr 16 + $card` root:$net 600
+	scan)
+		major=`Major Scanner` || continue;
+		makedev $arg    c $major 0 $scanner
+#		makedev ${arg}d c $major 1 $scanner
 		;;
 	audio)
-		makedev mixer     c 14 0 root:$audio 666
-		makedev sequencer c 14 1 root:$audio 666
-		makedev midi      c 14 2 root:$audio 666
-		makedev dsp       c 14 3 root:$audio 666
-		makedev audio     c 14 4 root:$audio 666
-		makedev sndstat   c 14 6 root:$audio 666
-	#	makedev dsp1      c 14 19 root:$audio 666
-	#	makedev audio1    c 14 20 root:$audio 666
+		major=`Major sound 14`
+		makedev mixer     c $major 0 $audio
+		makedev sequencer c $major 1 $audio
+		makedev midi      c $major 2 $audio
+		makedev dsp       c $major 3 $audio
+		makedev audio     c $major 4 $audio
+		makedev sndstat   c $major 6 $audio
+		makedev mixer1    c $major 16 $audio
+		makedev dsp1      c $major 19 $audio
+		makedev audio1    c $major 20 $audio
 		;;
 	pcaudio)
-		makedev pcmixer c 30 0 root:$audio 666
-		makedev pcsp    c 30 3 root:$audio 666
-		makedev pcaudio c 30 4 root:$audio 666
+		makedev pcmixer c 30 0 $audio
+		makedev pcsp    c 30 3 $audio
+		makedev pcaudio c 30 4 $audio
 		;;
 	sg)
+		major=`Major sg 21`
 		for unit in a b c d e f g h
 		do
 			minor=`expr abcdefgh : ".*$unit" - 1`
-			makedev $arg$unit c 21 $minor root:$system 660
+			makedev $arg$unit c $major $minor $scsi
 		done
 		;;
 	fd)
@@ -337,8 +415,62 @@ do
 		symlink stdout fd/1
 		symlink stderr fd/2
 		;;
+	ibcs2)
+		major=`Major ibcs2 30` || continue
+		makedev socksys c $major 0 $ibcs2
+		makedev spx     c $major 1 $ibcs2
+		symlink XOR null
+		;;
+	helloworld)
+		major=`Major hw` || continue
+		makedev helloworld c $major 0 $public
+		;;
+	update)
+		if [ ! "$devices" ]
+		then
+			echo "$0: don't appear to have any devices" >&2
+			continue
+		fi
+		if [ "$opt_d" ]
+		then
+			echo "$0: can't delete an update" >&2
+			continue
+		fi
+		create=
+		delete=
+		devs="$devices"
+		if [ -f DEVICES ]
+		then
+			exec 3<DEVICES
+			while read device major <&3
+			do
+				eval now=\$major_$device
+				if [ "$now" = "" ]
+				then
+					delete="$delete `cvt $device`"
+					continue
+				elif [ "$now" != $major ]
+				then
+					create="$create "`cvt $device`
+				fi
+				devs=`expr "$devs" : "\(.*\) $device"``expr "$devs" : ".* $device\(.*\)"`
+			done
+			exec 3<&-
+		fi
+		create="$create "`cvt $devs`
+		$0 $opts -d $delete
+		$0 $opts $create
+		[ "$opt_n" ] && continue
+		for device in $devices
+		do
+			if [ "`cvt $device`" ]
+			then
+			    eval echo $device \$major_$device
+			fi
+		done > DEVICES
+		;;
 	*)
-		echo "don't know how to make device \"$arg\"" >&2
+		echo "$0: don't know how to make device \"$arg\"" >&2
 		;;
 	esac
 done
