@@ -1,6 +1,6 @@
 #! /bin/sh -
 
-# $Id: MAKEDEV,v 1.2 1993/12/02 10:51:18 alfie Exp alfie $
+# $Id: MAKEDEV,v 1.3 1994/01/04 10:27:24 alfie Exp alfie $
 #
 # This is my attempt at a MAKEDEV script.  IMHO it cleans up many areas.
 # It can be used to determine the necessary info for a device without
@@ -21,7 +21,7 @@
 # Thanks to Ian Jackson for help and encouragement.
 # 
 # 	Nick Holloway <alfie@dcs.warwick.ac.uk>  
-#					Last changed: 4th January 1994
+#					Last changed: 31st January 1994
 # 
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 # Device 'make' file.  Valid arguments:
@@ -80,7 +80,7 @@
  system=system
    kmem=kmem
     tty=tty
-dialout=dialout
+dialout=uucp
   mouse=system
 printer=daemon
  floppy=floppy
@@ -272,11 +272,15 @@ do
 	cdu535)
 		makedev $arg b 24 0 root:$cdrom 660
 		;;
-#	lmscd)
-#		makedev $arg b 24 0 root:$cdrom 660
+	lmscd)
+		makedev $arg b 24 0 root:$cdrom 660
 		;;
 	sbpcd)
 		makedev $arg b 25 0 root:$cdrom 660
+		makedev ${arg}0 b 25 0 root:$cdrom 660
+		makedev ${arg}1 b 25 1 root:$cdrom 660
+		makedev ${arg}2 b 25 2 root:$cdrom 660
+		makedev ${arg}3 b 25 3 root:$cdrom 660
 		;;
 	net)
 		makedev socket   c 16 0 root:$net 600
