@@ -1,6 +1,6 @@
 #! /bin/sh -
 
-# $Id: MAKEDEV,v 1.1 1993/07/19 11:32:44 alfie Exp alfie $
+# $Id: MAKEDEV,v 1.2 1993/12/02 10:51:18 alfie Exp alfie $
 #
 # This is my attempt at a MAKEDEV script.  IMHO it cleans up many areas.
 # It can be used to determine the necessary info for a device without
@@ -21,7 +21,7 @@
 # Thanks to Ian Jackson for help and encouragement.
 # 
 # 	Nick Holloway <alfie@dcs.warwick.ac.uk>  
-#					Last changed: 2nd December 1993
+#					Last changed: 4th January 1994
 # 
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
 # Device 'make' file.  Valid arguments:
@@ -52,12 +52,14 @@
 #	loop		Loopback disk devices
 #  Tapes:
 #	st[0-1]		SCSI tapes
-#	qic		QIC tapes
-#	ftape		floppy driver tapes
+#	qic		QIC-80 tapes
+#	ftape		floppy driver tapes (QIC-117)
 #  CD:
 #	scd[0-1]	SCSI CD players
-#	sonycd		Sony CD player
+#	sonycd		Sony CDU-31A CD player
 #	mcd		Mitsumi CD player
+#	cdu535		Sony CDU-535 CD player
+#	lmscd		LMS/Philips CD player	(needs new major number)
 #	sbpcd		Sound Blaster CD player
 #  Networking:
 #	net		various protocol control devices (?)
@@ -67,6 +69,7 @@
 #	audio		various audio devices
 #	pcaudio		audio devices used by pcsndrv
 #  Misc:
+#       sg		generic SCSI devices
 #	fd		file names for file descriptors
 #
 #---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#---#
@@ -258,13 +261,19 @@ do
 		;;
 	scd[0-1])
 		unit=`expr $arg : "scd\(.\)"`
-		makedev scd$unit c 11 $unit root:$cdrom 660
+		makedev scd$unit b 11 $unit root:$cdrom 660
 		;;
 	sonycd)
-		makedev $arg b 21 0 root:$cdrom 660
+		makedev $arg b 15 0 root:$cdrom 660
 		;;
 	mcd)
 		makedev $arg b 23 0 root:$cdrom 660
+		;;
+	cdu535)
+		makedev $arg b 24 0 root:$cdrom 660
+		;;
+#	lmscd)
+#		makedev $arg b 24 0 root:$cdrom 660
 		;;
 	sbpcd)
 		makedev $arg b 25 0 root:$cdrom 660
@@ -301,11 +310,21 @@ do
 		makedev midi      c 14 2 root:$audio 666
 		makedev dsp       c 14 3 root:$audio 666
 		makedev audio     c 14 4 root:$audio 666
+		makedev sndstat   c 14 6 root:$audio 666
+	#	makedev dsp1      c 14 19 root:$audio 666
+	#	makedev audio1    c 14 20 root:$audio 666
 		;;
 	pcaudio)
 		makedev pcmixer c 30 0 root:$audio 666
 		makedev pcsp    c 30 3 root:$audio 666
 		makedev pcaudio c 30 4 root:$audio 666
+		;;
+	sg)
+		for unit in a b c d e f g h
+		do
+			minor=`expr abcdefgh : ".*$unit" - 1`
+			makedev $arg$unit c 21 $minor root:$system 660
+		done
 		;;
 	fd)
 		# not really devices, we use the /proc filesystem
